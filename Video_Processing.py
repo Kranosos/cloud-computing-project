@@ -2,54 +2,47 @@ import cv2
 import numpy as np
 import os
 
-def exctract_keyframes_time_based(video_path, output_folder, trhld=30, max_time_interval=5):
+def extract_keyframes_time_based(video_path, output_folder, threshold=30, max_time_interval=5):
     """
-    Exctract keyframe base on a change of scene OR a specified time interval.
+    Extract keyframes based on scene changes OR a specified time interval.
 
     Args:
-        video path (str): path to the video on input.
-        output folder(str): folder in which we will save the output.
-        treshold (int): difference treshold for catching a changing scene.
-        max_time_interval (int): maximum time that can pass between one sampling and another.
+        video_path (str): Path to the input video.
+        output_folder (str): Folder where the extracted keyframes will be saved.
+        threshold (int): Difference threshold to detect a scene change.
+        max_time_interval (int): Maximum time (in seconds) allowed between two keyframes.
     """
-    # try open the video
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error: impossible to open the file: {video_path}")
+        print(f"Error: Unable to open the file: {video_path}")
         return
 
-    # Get the frame rate of the video (FPS) for calculate time
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps == 0:
-        print("Error: impossible to establish the frame rate (FPS). Default value: 25")
-        fps = 25 # Default value
+        print("Warning: Unable to determine the frame rate. Using default value: 25 FPS.")
+        fps = 25
 
-    # Setting maximum number of frames that can pass without extracting 
     max_frames_interval = int(max_time_interval * fps)
-    print(f"video info: {fps:.2f} FPS. A keyframe will be extract every {max_time_interval} second (~{max_frames_interval} frames) without any scene change.")
+    print(f"Video Info: {fps:.2f} FPS. A keyframe will be extracted every {max_time_interval} seconds (~{max_frames_interval} frames) if no scene change is detected.")
 
-    # Creating output folder if not already existing
     if not os.path.exists(output_folder):
-        print(f"creating out folder {output_folder}")
+        print(f"Creating output folder: {output_folder}")
         os.makedirs(output_folder)
 
-    # read the first frame
     ret, previous_frame = cap.read()
     if not ret:
-        print("Error: Impossible to read the first frame of the video.")
+        print("Error: Unable to read the first frame of the video.")
         return
 
     previous_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
 
-    # Always save the first frame
     file_name = os.path.join(output_folder, "keyframe_0000.jpg")
     cv2.imwrite(file_name, previous_frame)
-    print(f"keyframe saved (Frame #0): {file_name} - reason: starting frame")
+    print(f"Keyframe saved (Frame #0): {file_name} - Reason: Initial frame")
 
     keyframe_number = 1
-    current_frame_num= 0
-    # keep the count of the numebr of frames untill the last one
-    last_frame_num = 0
+    current_frame_num = 0
+    last_keyframe_num = 0
 
     while True:
         ret, current_frame = cap.read()
@@ -58,67 +51,46 @@ def exctract_keyframes_time_based(video_path, output_folder, trhld=30, max_time_
 
         current_frame_num += 1
         current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-        
-        # Calculating difference on the scene
+
         diff = cv2.absdiff(current_gray, previous_gray)
         mean_diff = np.mean(diff)
 
-        # Calculating how many frames are passed since the last extraction
-        frames_from_last_keyframe = current_frame_num - last_keyframe_num
+        frames_since_last_keyframe = current_frame_num - last_keyframe_num
 
-        # --- Combined Logic Extraction ---
-        # First Condition: Scene changing
-        scene_change = mean_diff > trhld
-        # Second condition: time passed
-        time_passed = frames_from_last_keyframe >= max_frames_interval
+        scene_change = mean_diff > threshold
+        time_exceeded = frames_since_last_keyframe >= max_frames_interval
 
-        if scene_change or time_passed:
-            reason = ""
-            if scene_change:
-                reason = f"Scene Changing (Diff: {mean_diff:.2f})"
-            else:
-                reason = "Time limit achived"
-
-            # Saving keyframe
+        if scene_change or time_exceeded:
+            reason = "Scene change" if scene_change else "Time interval exceeded"
             file_name = os.path.join(output_folder, f"keyframe_{keyframe_number:04d}.jpg")
             cv2.imwrite(file_name, current_frame)
-            print(f"Salvato keyframe (Frame #{current_frame_num}): {file_name} - Motivo: {reason}")
-            
-            # Updating counters
-            keyframe_number += 1
-            last_keyframe_num = current_frame_num # Reset the counter
+            print(f"Keyframe saved (Frame #{current_frame_num}): {file_name} - Reason: {reason}")
 
-        # Update the frame for the next one
+            keyframe_number += 1
+            last_keyframe_num = current_frame_num
+
         previous_gray = current_gray
 
-    # realising resource
     cap.release()
-    print("\nCompleted extraction.")
-    print(f"Total frames analysed: {current_frame_num}")
-    print(f"Total keyframe extracted: {keyframe_number}")
+    print("\nExtraction complete.")
+    print(f"Total frames analyzed: {current_frame_num}")
+    print(f"Total keyframes extracted: {keyframe_number}")
 
 
 if __name__ == '__main__':
-    # --- settings ---
-    # video path
-    file_video_input = 'input.mp4'
-    
-    # folder name for savings the images
-    output_folder_images = 'keyframes_estratti_tempo'
-    
-    # Treshold for detect a changing scene (the lower it is more sensible it is)
-    Treshold_difference = 25
-    
-    # Max second interval between two extraction
-    max_second_interval = 5.0
+    # --- Settings ---
+    input_video_path = "C:/UNI/Distributed System and Cloud Computing/cloud-computing-project/input.mp4"
+    output_folder_path = "C:/UNI/Distributed System and Cloud Computing/cloud-computing-project/key_frame_output_folder"
+    threshold_difference = 25
+    max_seconds_between_keyframes = 5.0
 
-    # --- execution ---
-    if not os.path.exists(file_video_input):
-        print(f"video file not founded: '{file_video_input}'. Ensure that the file exist and the path it's correct.")
+    # --- Execution ---
+    if not os.path.exists(input_video_path):
+        print(f"Video file not found: '{input_video_path}'. Please check the path.")
     else:
-        exctract_keyframes_time_based(
-            file_video_input, 
-            output_folder_images, 
-            Treshold=Treshold_difference, 
-            max_time=max_second_interval
+        extract_keyframes_time_based(
+            video_path=input_video_path,
+            output_folder=output_folder_path,
+            threshold=threshold_difference,
+            max_time_interval=max_seconds_between_keyframes
         )
