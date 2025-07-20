@@ -1,0 +1,8 @@
+name: flower-finder-env
+
+channels:
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip

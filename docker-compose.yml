@@ -1,0 +1,28 @@
+services:
+  video-processor:
+    build: ./video-processor
+    environment:
+      - INPUT_DIR=/app/input_videos
+      - OUTPUT_DIR=/app/output_keyframes
+    volumes:
+      - ./storage/input:/app/input_videos
+      - ./storage/processed:/app/output_keyframes
+
+  flower-recognizer:
+    build: ./flower-recognizer
+    environment:
+      - OUTPUT_DIR=/app/storage/results
+    volumes:
+      - ./storage/processed:/app/storage/processed:ro
+      - ./storage/results:/app/storage/results
+    depends_on:
+      - video-processor
+
+  dataset-matcher:
+    build: ./dataset-matcher
+    environment:
+      - INPUT_DIR=/app/storage/results 
+    volumes:
+      - ./storage/results:/app/storage/results:ro
+    depends_on:
+      - flower-recognizer
