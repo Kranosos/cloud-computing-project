@@ -1,7 +1,7 @@
 param (
     [string]$VideoPath,
-    [string]$Effect
-)
+    [string]$Effect,
+    [string]$GitRepoUrl # "https://github.com/Kranosos/cloud-computing-project"
 
 # --- Configuration ---
 $ZONE = "europe-west1-b"
@@ -9,21 +9,18 @@ $EDGE_VM_NAME = "edge-instance"
 $CLOUD_VM_NAME = "cloud-instance"
 $REMOTE_USER = "Gabriele"
 $REMOTE_PROJECT_PATH = "/home/Gabriele/cloud-computing-project"
-$LOCAL_ZIP_FILE = "cloud-computing-project.zip"
 
 Write-Host "--- Starting Flower Finder Cloud Workflow ---"
 
-# --- Step 1: Create Zip and Deploy Code ---
-Write-Host "[1/5] Compressing and deploying project code..."
-Compress-Archive -Path ".\*" -DestinationPath $LOCAL_ZIP_FILE -Force
+# --- Step 1: Deploy Code via Git ---
+Write-Host "[1/5] Deploying project code to both VMs via Git..."
+$GIT_COMMAND = "sudo apt-get install -y git && git clone $GitRepoUrl $REMOTE_PROJECT_PATH"
 
 # Deploy to Edge VM
-gcloud compute scp $LOCAL_ZIP_FILE "${REMOTE_USER}@${EDGE_VM_NAME}:~/" --zone=$ZONE
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command="sudo apt-get install -y unzip && unzip -o ~/$LOCAL_ZIP_FILE -d $REMOTE_PROJECT_PATH"
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 
 # Deploy to Cloud VM
-gcloud compute scp $LOCAL_ZIP_FILE "${REMOTE_USER}@${CLOUD_VM_NAME}:~/" --zone=$ZONE
-gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="sudo apt-get install -y unzip && unzip -o ~/$LOCAL_ZIP_FILE -d $REMOTE_PROJECT_PATH"
+gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 
 # --- Step 2. Upload Inputs ---
 Write-Host "[2/5] Uploading video to Edge VM and effect to Cloud VM..."
