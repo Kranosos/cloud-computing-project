@@ -14,7 +14,7 @@ $SCOPES = "https://www.googleapis.com/auth/cloud-platform"
 
 Write-Host "--- Starting Full Project Deployment and Execution ---"
 
-# --- Step 1: Clean Up and Create VMs ---
+# --- Step 1: Clean Up and Create Infrastructure ---
 Write-Host "[1/5] Cleaning up old resources and creating new VMs..."
 gcloud compute instances delete $EDGE_VM_NAME $CLOUD_VM_NAME --zone=$ZONE --quiet
 gcloud compute firewall-rules delete allow-ssh-iap --quiet
