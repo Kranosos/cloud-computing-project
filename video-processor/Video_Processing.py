@@ -1,43 +1,47 @@
+import os
 import cv2
 import numpy as np
-import os
+from google.cloud import storage
+import tempfile
 
-def extract_keyframes_time_based(video_path, output_folder, threshold=30, max_time_interval=5):
+# --- Configuration ---
+# These values are read from environment variables set in docker-compose.yml or GCP.
+INPUT_BUCKET_NAME = os.getenv('INPUT_BUCKET')
+OUTPUT_BUCKET_NAME = os.getenv('OUTPUT_BUCKET')
+
+def extract_keyframes(video_path, output_folder, threshold=30, max_time_interval=5):
     """
-    Extract keyframes based on scene changes OR a specified time interval.
-    Args are passed from the main block below.
+    Extracts keyframes based on scene changes OR a specified time interval.
+    This is your original, proven logic.
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error: Unable to open the file: {video_path}")
-        return
+        print(f"Error: Unable to open video file: {video_path}")
+        return 0
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps == 0:
-        print("Warning: Unable to determine the frame rate. Using default value: 25 FPS.")
+        print("Warning: Unable to determine FPS. Defaulting to 25.")
         fps = 25
 
     max_frames_interval = int(max_time_interval * fps)
-    print(f"Video Info: {fps:.2f} FPS. A keyframe will be extracted every {max_time_interval} seconds (~{max_frames_interval} frames) if no scene change is detected.")
-
+    
     if not os.path.exists(output_folder):
-        print(f"Creating output folder: {output_folder}")
         os.makedirs(output_folder)
 
     ret, previous_frame = cap.read()
     if not ret:
-        print("Error: Unable to read the first frame of the video.")
+        print("Error: Unable to read the first frame.")
         cap.release()
-        return
+        return 0
 
     previous_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-
-    file_name = os.path.join(output_folder, "keyframe_0000.jpg")
-    cv2.imwrite(file_name, previous_frame)
-    print(f"Keyframe saved (Frame #0): {file_name} - Reason: Initial frame")
-
-    keyframe_number = 1
-    current_frame_num = 0
+    
+    # Save the first frame
+    cv2.imwrite(os.path.join(output_folder, "keyframe_0000.jpg"), previous_frame)
+    
+    keyframe_count = 1
+    frame_num = 0
     last_keyframe_num = 0
 
     while True:
@@ -45,63 +49,71 @@ def extract_keyframes_time_based(video_path, output_folder, threshold=30, max_ti
         if not ret:
             break
 
-        current_frame_num += 1
+        frame_num += 1
         current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-
         diff = cv2.absdiff(current_gray, previous_gray)
         mean_diff = np.mean(diff)
 
-        frames_since_last_keyframe = current_frame_num - last_keyframe_num
-
-        scene_change = mean_diff > threshold
-        time_exceeded = frames_since_last_keyframe >= max_frames_interval
-
-        if scene_change or time_exceeded:
-            reason = "Scene change" if scene_change else "Time interval exceeded"
-            file_name = os.path.join(output_folder, f"keyframe_{keyframe_number:04d}.jpg")
-            cv2.imwrite(file_name, current_frame)
-            print(f"Keyframe saved (Frame #{current_frame_num}): {file_name} - Reason: {reason}")
-
-            keyframe_number += 1
-            last_keyframe_num = current_frame_num
+        if (mean_diff > threshold) or (frame_num - last_keyframe_num >= max_frames_interval):
+            filename = os.path.join(output_folder, f"keyframe_{keyframe_count:04d}.jpg")
+            cv2.imwrite(filename, current_frame)
+            keyframe_count += 1
+            last_keyframe_num = frame_num
 
         previous_gray = current_gray
 
     cap.release()
-    print("\nExtraction complete.")
-    print(f"Total frames analyzed: {current_frame_num}")
-    print(f"Total keyframes extracted: {keyframe_number}")
+    print(f"Extraction complete. Found {keyframe_count} keyframes.")
+    return keyframe_count
 
+def main():
+    """
+    Main workflow to download, process, and upload videos.
+    """
+    if not INPUT_BUCKET_NAME or not OUTPUT_BUCKET_NAME:
+        print("Error: INPUT_BUCKET and OUTPUT_BUCKET environment variables must be set.")
+        return
 
-if __name__ == '__main__':
-    # --- MODIFIED SECTION ---
-    # Get input/output directories from environment variables set by Docker Compose.
-    # Default values are provided for easy local testing without Docker.
-    input_dir = os.getenv('INPUT_DIR', 'storage/input')
-    output_dir = os.getenv('OUTPUT_DIR', 'storage/processed')
+    storage_client = storage.Client()
+    input_bucket = storage_client.bucket(INPUT_BUCKET_NAME)
+    output_bucket = storage_client.bucket(OUTPUT_BUCKET_NAME)
+
+    print("--- Starting Video Processing Service ---")
+    print(f"Scanning for videos in bucket: gs://{INPUT_BUCKET_NAME}/")
+
+    blobs_to_process = list(storage_client.list_blobs(INPUT_BUCKET_NAME))
     
-    # --- Settings ---
-    threshold_difference = 25
-    max_seconds_between_keyframes = 5.0
+    if not blobs_to_process:
+        print("No videos found in the input bucket. Exiting.")
+        return
 
-    # --- Execution ---
-    # The script now processes all video files found in the input directory.
-    print(f"Searching for videos in: {input_dir}")
-    if not os.path.isdir(input_dir):
-        print(f"Input directory not found: '{input_dir}'. Exiting.")
-    else:
-        for filename in os.listdir(input_dir):
-            if filename.lower().endswith(('.mp4', '.mov', '.avi')):
-                video_path = os.path.join(input_dir, filename)
-                print(f"\n--- Processing video: {filename} ---")
+    for blob in blobs_to_process:
+        video_filename = blob.name
+        # Use a temporary directory that gets automatically cleaned up
+        with tempfile.TemporaryDirectory() as temp_dir:
+            local_video_path = os.path.join(temp_dir, video_filename)
+            local_keyframe_dir = os.path.join(temp_dir, "keyframes")
+
+            print(f"\nProcessing '{video_filename}'...")
+            
+            # 1. Download video from GCS
+            blob.download_to_filename(local_video_path)
+            
+            # 2. Extract keyframes to a local temporary folder
+            extract_keyframes(local_video_path, local_keyframe_dir)
+
+            # 3. Upload extracted keyframes to the output GCS bucket
+            video_name_base = os.path.splitext(video_filename)[0]
+            for frame_file in os.listdir(local_keyframe_dir):
+                destination_blob_name = f"{video_name_base}/{frame_file}"
+                local_frame_path = os.path.join(local_keyframe_dir, frame_file)
                 
-                # Create a unique subfolder for each video's keyframes
-                video_name_without_ext = os.path.splitext(filename)[0]
-                video_output_folder = os.path.join(output_dir, video_name_without_ext)
-                
-                extract_keyframes_time_based(
-                    video_path=video_path,
-                    output_folder=video_output_folder,
-                    threshold=threshold_difference,
-                    max_time_interval=max_seconds_between_keyframes
-                )
+                new_blob = output_bucket.blob(destination_blob_name)
+                new_blob.upload_from_filename(local_frame_path)
+            
+            print(f"Finished uploading keyframes for '{video_filename}'.")
+
+    print("\n--- Video Processing Service Finished ---")
+
+if __name__ == "__main__":
+    main()

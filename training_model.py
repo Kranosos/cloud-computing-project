@@ -17,7 +17,11 @@ from keras.optimizers import Adam
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-folder_dir = Path("./flower_photos")
+folder_dir = Path("./flowers")
+
+# dynamic classes count
+num_classes = len([name for name in os.listdir(folder_dir) if os.path.isdir(os.path.join(folder_dir, name))])
+print(f"--- Found {num_classes} flower classes in the dataset. ---")
 
 data = []
 label = []
@@ -44,7 +48,7 @@ label_arr = np.array(label)
 
 encoder = LabelEncoder()
 y = encoder.fit_transform(label_arr)
-y = to_categorical(y,5)
+y = to_categorical(y, num_classes)
 X = data_arr/255
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=10)
@@ -62,7 +66,7 @@ model.add(Flatten())
 model.add(Dense(128, activation='relu'))
 model.add(Dense(64, activation='relu'))
 model.add(Dropout(rate=0.5))
-model.add(Dense(5, activation = "softmax"))
+model.add(Dense(num_classes, activation = "softmax"))
 
 datagen = ImageDataGenerator(
         rotation_range=20,
