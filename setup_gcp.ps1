@@ -20,8 +20,8 @@ gcloud compute firewall-rules create allow-ssh-iap --direction=INGRESS --action=
 Write-Host "Creating Edge VM: ${EDGE_VM_NAME}..."
 gcloud compute instances create $EDGE_VM_NAME --zone=$ZONE --machine-type=$EDGE_MACHINE_TYPE --image-family=$IMAGE_FAMILY --image-project=$IMAGE_PROJECT --scopes=$SCOPES
 Write-Host "Edge VM created."
-Write-Host "Waiting 60 seconds for Edge VM to boot..."
-Start-Sleep -Seconds 60
+Write-Host "Waiting 15 seconds for Edge VM to boot..."
+Start-Sleep -Seconds 15
 
 # --- 3. Install Docker on Edge VM ---
 Write-Host "Installing Docker on Edge VM..."
@@ -33,8 +33,8 @@ Write-Host "Creating Cloud VM: ${CLOUD_VM_NAME}..."
 # Added --boot-disk-size=30GB to provide more space for Docker images
 gcloud compute instances create $CLOUD_VM_NAME --zone=$ZONE --machine-type=$CLOUD_MACHINE_TYPE --image-family=$IMAGE_FAMILY --image-project=$IMAGE_PROJECT --scopes=$SCOPES --boot-disk-size=30GB
 Write-Host "Cloud VM created."
-Write-Host "Waiting 60 seconds for Cloud VM to boot..."
-Start-Sleep -Seconds 60
+Write-Host "Waiting 15 seconds for Cloud VM to boot..."
+Start-Sleep -Seconds 15
 
 # --- 5. Install Docker on Cloud VM ---
 Write-Host "Installing Docker on Cloud VM..."
