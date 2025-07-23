@@ -22,6 +22,7 @@ services:
     build: ./dataset-matcher
     environment:
       - INPUT_DIR=/app/storage/results 
+      - OUTPUT_DIR=/app/storage/results
     volumes:
       - ./storage/results:/app/storage/results:ro
     depends_on:

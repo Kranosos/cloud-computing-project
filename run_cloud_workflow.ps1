@@ -1,7 +1,8 @@
 param (
     [string]$VideoPath,
     [string]$Effect,
-    [string]$GitRepoUrl # "https://github.com/Kranosos/cloud-computing-project"
+    [string]$GitRepoUrl
+)
 
 # --- Configuration ---
 $ZONE = "europe-west1-b"
@@ -14,12 +15,9 @@ Write-Host "--- Starting Flower Finder Cloud Workflow ---"
 
 # --- Step 1: Deploy Code via Git ---
 Write-Host "[1/5] Deploying project code to both VMs via Git..."
-$GIT_COMMAND = "sudo apt-get install -y git && git clone $GitRepoUrl $REMOTE_PROJECT_PATH"
+$GIT_COMMAND = "sudo apt-get update -y && sudo apt-get install -y git && rm -rf $REMOTE_PROJECT_PATH && git clone $GitRepoUrl $REMOTE_PROJECT_PATH"
 
-# Deploy to Edge VM
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
-
-# Deploy to Cloud VM
 gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 
 # --- Step 2. Upload Inputs ---
@@ -29,7 +27,9 @@ gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="ech
 
 # --- Step 3. Run Video Processor on Edge ---
 Write-Host "[3/5] Starting video processing on the Edge VM..."
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command="cd ${REMOTE_PROJECT_PATH}; docker-compose up --build -d video-processor"
+# Added sudo here
+$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build -d video-processor"
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$EDGE_DOCKER_COMMAND
 
 # --- Step 4. Transfer Keyframes from Edge to Cloud ---
 Write-Host "[4/5] Transferring processed keyframes from Edge to Cloud..."
@@ -39,6 +39,8 @@ gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$scp_
 # --- Step 5. Run Recognizer and Matcher on Cloud ---
 Write-Host "[5/5] Starting flower recognition and matching on the Cloud VM..."
 Write-Host "The final output will be displayed below:"
-gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="cd ${REMOTE_PROJECT_PATH}; docker-compose up --build flower-recognizer dataset-matcher"
+# Added sudo here
+$CLOUD_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build flower-recognizer dataset-matcher"
+gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$CLOUD_DOCKER_COMMAND
 
 Write-Host "--- Workflow Complete ---"
