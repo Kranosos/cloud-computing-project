@@ -15,7 +15,7 @@ Write-Host "--- Starting Flower Finder Cloud Workflow ---"
 
 # --- Step 1: Clean Up Remote Directories ---
 Write-Host "[1/6] Cleaning up remote directories on VMs..."
-$CLEANUP_COMMAND = "rm -rf ${REMOTE_PROJECT_PATH}"
+$CLEANUP_COMMAND = "sudo rm -rf ${REMOTE_PROJECT_PATH}"
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$CLEANUP_COMMAND
 gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$CLEANUP_COMMAND
 
@@ -24,11 +24,19 @@ Write-Host "[2/6] Deploying project code to both VMs via Git..."
 $GIT_COMMAND = @"
 sudo apt-get update -y && \
 sudo apt-get install -y git git-lfs && \
-git clone $GitRepoUrl $REMOTE_PROJECT_PATH && \
-cd $REMOTE_PROJECT_PATH && \
-git lfs pull && \
+if [ -d "$REMOTE_PROJECT_PATH/.git" ]; then \
+  cd $REMOTE_PROJECT_PATH && \
+  git fetch origin && \
+  git reset --hard origin/main && \
+  git lfs pull; \
+else \
+  git clone $GitRepoUrl $REMOTE_PROJECT_PATH && \
+  cd $REMOTE_PROJECT_PATH && \
+  git lfs pull; \
+fi && \
 mkdir -p ${REMOTE_PROJECT_PATH}/storage/input ${REMOTE_PROJECT_PATH}/storage/processed ${REMOTE_PROJECT_PATH}/storage/results
 "@
+
 
 
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
@@ -41,7 +49,7 @@ gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="ech
 
 # --- Step 4. Run Video Processor on Edge ---
 Write-Host "[4/6] Starting video processing on the Edge VM..."
-$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build video-processor"
+$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose down -v --remove-orphans; sudo docker system prune -f -a -f; sudo docker-compose up --build video-processor"
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$EDGE_DOCKER_COMMAND
 
 # --- Step 5. Transfer Keyframes from Edge to Cloud ---
