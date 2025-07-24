@@ -6,8 +6,8 @@ import tempfile
 
 # --- Configuration ---
 # These values are read from environment variables set in docker-compose.yml or GCP.
-INPUT_BUCKET_NAME = os.getenv('INPUT_BUCKET')
-OUTPUT_BUCKET_NAME = os.getenv('OUTPUT_BUCKET')
+INPUT_BUCKET_NAME = os.getenv('INPUT_DIR')
+OUTPUT_BUCKET_NAME = os.getenv('OUTPUT_DIR')
 
 def extract_keyframes(video_path, output_folder, threshold=30, max_time_interval=5):
     """
@@ -67,53 +67,43 @@ def extract_keyframes(video_path, output_folder, threshold=30, max_time_interval
     return keyframe_count
 
 def main():
-    """
-    Main workflow to download, process, and upload videos.
-    """
     if not INPUT_BUCKET_NAME or not OUTPUT_BUCKET_NAME:
-        print("Error: INPUT_BUCKET and OUTPUT_BUCKET environment variables must be set.")
+        print("Error: INPUT_DIR and OUTPUT_DIR environment variables must be set.")
         return
 
-    storage_client = storage.Client()
-    input_bucket = storage_client.bucket(INPUT_BUCKET_NAME)
-    output_bucket = storage_client.bucket(OUTPUT_BUCKET_NAME)
+    if not os.path.exists(INPUT_BUCKET_NAME):
+        print(f"Error: Input directory '{INPUT_BUCKET_NAME}' does not exist.")
+        return
+
+    os.makedirs(OUTPUT_BUCKET_NAME, exist_ok=True)
+
+    video_files = [
+        f for f in os.listdir(INPUT_BUCKET_NAME)
+        if f.lower().endswith(('.mp4', '.avi', '.mov'))
+    ]
+
+    if not video_files:
+        print("No videos found in the input directory. Exiting.")
+        return
 
     print("--- Starting Video Processing Service ---")
-    print(f"Scanning for videos in bucket: gs://{INPUT_BUCKET_NAME}/")
 
-    blobs_to_process = list(storage_client.list_blobs(INPUT_BUCKET_NAME))
-    
-    if not blobs_to_process:
-        print("No videos found in the input bucket. Exiting.")
-        return
+    for video_filename in video_files:
+        video_path = os.path.join(INPUT_BUCKET_NAME, video_filename)
+        video_name_base = os.path.splitext(video_filename)[0]
+        output_subdir = os.path.join(OUTPUT_BUCKET_NAME, video_name_base)
+        os.makedirs(output_subdir, exist_ok=True)
 
-    for blob in blobs_to_process:
-        video_filename = blob.name
-        # Use a temporary directory that gets automatically cleaned up
-        with tempfile.TemporaryDirectory() as temp_dir:
-            local_video_path = os.path.join(temp_dir, video_filename)
-            local_keyframe_dir = os.path.join(temp_dir, "keyframes")
+        print(f"\nProcessing '{video_filename}'...")
+        keyframe_count = extract_keyframes(video_path, output_subdir)
 
-            print(f"\nProcessing '{video_filename}'...")
-            
-            # 1. Download video from GCS
-            blob.download_to_filename(local_video_path)
-            
-            # 2. Extract keyframes to a local temporary folder
-            extract_keyframes(local_video_path, local_keyframe_dir)
-
-            # 3. Upload extracted keyframes to the output GCS bucket
-            video_name_base = os.path.splitext(video_filename)[0]
-            for frame_file in os.listdir(local_keyframe_dir):
-                destination_blob_name = f"{video_name_base}/{frame_file}"
-                local_frame_path = os.path.join(local_keyframe_dir, frame_file)
-                
-                new_blob = output_bucket.blob(destination_blob_name)
-                new_blob.upload_from_filename(local_frame_path)
-            
-            print(f"Finished uploading keyframes for '{video_filename}'.")
+        if keyframe_count > 0:
+            print(f"Extracted {keyframe_count} keyframes to '{output_subdir}'.")
+        else:
+            print(f"Failed to extract keyframes from '{video_filename}'.")
 
     print("\n--- Video Processing Service Finished ---")
+
 
 if __name__ == "__main__":
     main()

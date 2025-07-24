@@ -28,12 +28,17 @@ def predict_flower(image_path):
     try:
         # Load and preprocess the image
         img = cv2.imread(image_path)
+        if img is None:
+            print(f"Warning: Failed to read image: {image_path}")
+            return None
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         im = cv2.resize(img_rgb, (IMAGE_SIZE, IMAGE_SIZE))
         im = np.expand_dims(im, axis=0) / 255.0
 
         # Make a prediction
         prediction = model.predict(im)
+        #print prediction for debugging
+        print(f"Prediction for {image_path}: {prediction}")
         predicted_class_index = np.argmax(prediction)
         predicted_class_name = class_names[predicted_class_index]
 
