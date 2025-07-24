@@ -27,8 +27,9 @@ sudo apt-get install -y git git-lfs && \
 git clone $GitRepoUrl $REMOTE_PROJECT_PATH && \
 cd $REMOTE_PROJECT_PATH && \
 git lfs pull && \
-mkdir -p ${REMOTE_PROJECT_PATH}/storage/input
+mkdir -p ${REMOTE_PROJECT_PATH}/storage/input ${REMOTE_PROJECT_PATH}/storage/processed ${REMOTE_PROJECT_PATH}/storage/results
 "@
+
 
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
