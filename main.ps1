@@ -21,7 +21,15 @@ gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$CLE
 
 # --- Step 2: Deploy Code via Git ---
 Write-Host "[2/6] Deploying project code to both VMs via Git..."
-$GIT_COMMAND = "sudo apt-get update -y && sudo apt-get install -y git git-lfs && git clone $GitRepoUrl $REMOTE_PROJECT_PATH && cd $REMOTE_PROJECT_PATH && git lfs pull"
+$GIT_COMMAND = @"
+sudo apt-get update -y && \
+sudo apt-get install -y git git-lfs && \
+git clone $GitRepoUrl $REMOTE_PROJECT_PATH && \
+cd $REMOTE_PROJECT_PATH && \
+git lfs pull && \
+mkdir -p ${REMOTE_PROJECT_PATH}/storage/input
+"@
+
 gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
 
