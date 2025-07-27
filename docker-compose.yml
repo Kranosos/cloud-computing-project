@@ -1,12 +1,13 @@
+# File: docker-compose.yml
 services:
   video-processor:
     build: ./video-processor
     environment:
-      - INPUT_DIR=/app/input_videos
-      - OUTPUT_DIR=/app/output_keyframes
+      - INPUT_DIR=/app/storage/input
+      - OUTPUT_DIR=/app/storage/processed
     volumes:
-      - ./storage/input:/app/input_videos
-      - ./storage/processed:/app/output_keyframes
+      - ./storage/input:/app/storage/input
+      - ./storage/processed:/app/storage/processed
 
   flower-recognizer:
     build: ./flower-recognizer
@@ -15,15 +16,10 @@ services:
     volumes:
       - ./storage/processed:/app/storage/processed:ro
       - ./storage/results:/app/storage/results
-    depends_on:
-      - video-processor
 
   dataset-matcher:
     build: ./dataset-matcher
     environment:
-      - INPUT_DIR=/app/storage/results 
-      - OUTPUT_DIR=/app/storage/results
+      - INPUT_DIR=/app/storage/results
     volumes:
       - ./storage/results:/app/storage/results:ro
-    depends_on:
-      - flower-recognizer
