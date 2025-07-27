@@ -1,7 +1,7 @@
-# File: docker-compose.yml
 services:
   video-processor:
     build: ./video-processor
+    # This section tells the Python script which folders to use
     environment:
       - INPUT_DIR=/app/storage/input
       - OUTPUT_DIR=/app/storage/processed

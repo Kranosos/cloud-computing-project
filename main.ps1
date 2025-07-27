@@ -1,4 +1,3 @@
-# File: main.ps1
 param (
     [string]$VideoPath,
     [string]$Effect,
