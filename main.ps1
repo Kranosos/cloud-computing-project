@@ -11,7 +11,8 @@ $CLOUD_VM_NAME = "cloud-instance"
 $REMOTE_USER = "Gabriele"
 $REMOTE_PROJECT_PATH = "/home/Gabriele/cloud-computing-project"
 $SCOPES = "https://www.googleapis.com/auth/cloud-platform"
-$VIDEO_FILENAME = (Get-Item $VideoPath).Name
+# SSH options to disable interactive prompts
+$SSH_ARGS = "--ssh-flag='-o StrictHostKeyChecking=no' --ssh-flag='-o UserKnownHostsFile=/dev/null'"
 
 Write-Host "--- Starting Full Project Deployment and Execution ---"
 
@@ -24,31 +25,29 @@ gcloud compute instances create $EDGE_VM_NAME --zone=$ZONE --machine-type="e2-sm
 gcloud compute instances create $CLOUD_VM_NAME --zone=$ZONE --machine-type="e2-medium" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
 
 # --- Step 2: Install Dependencies ---
-Write-Host "[2/5] Installing dependencies on VMs..."
+Write-Host "[2/5] Waiting for VMs to boot and installing dependencies..."
 Start-Sleep -Seconds 60
-$INSTALL_COMMAND = "sudo apt-get update -y && sudo apt-get install -y git git-lfs && curl -sSL https://get.docker.com/ | sh && sudo usermod -aG docker ${REMOTE_USER}"
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$INSTALL_COMMAND
-gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$INSTALL_COMMAND
+$INSTALL_COMMAND = "sudo apt-get update -y && sudo apt-get install -y git git-lfs docker-compose"
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$INSTALL_COMMAND -- $SSH_ARGS
+gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$INSTALL_COMMAND -- $SSH_ARGS
 
 # --- Step 3: Deploy Code and Inputs ---
 Write-Host "[3/5] Deploying code and uploading inputs..."
 $GIT_COMMAND = "rm -rf $REMOTE_PROJECT_PATH && git clone $GitRepoUrl $REMOTE_PROJECT_PATH && cd $REMOTE_PROJECT_PATH && git lfs pull"
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
-gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND -- $SSH_ARGS
+gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command=$GIT_COMMAND -- $SSH_ARGS
 
-# Robust two-step file upload
-gcloud compute scp $VideoPath "${REMOTE_USER}@${EDGE_VM_NAME}:~/" --zone=$ZONE
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command="mv ~/$VIDEO_FILENAME ${REMOTE_PROJECT_PATH}/storage/input/"
-gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt"
+gcloud compute scp $VideoPath "${REMOTE_USER}@${EDGE_VM_NAME}:${REMOTE_PROJECT_PATH}/storage/input/" --zone=$ZONE -- $SSH_ARGS
+gcloud compute ssh "${REMOTE_USER}@${CLOUD_VM_NAME}" --zone=$ZONE --command="echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt" -- $SSH_ARGS
 
 # --- Step 4: Run Video Processor ---
 Write-Host "[4/5] Starting video processing on the Edge VM..."
-$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build video-processor"
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$EDGE_DOCKER_COMMAND
+$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build video-processor"
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$EDGE_DOCKER_COMMAND -- $SSH_ARGS
 
 # --- Step 5: Transfer and Final Processing ---
 Write-Host "[5/5] Transferring keyframes and running final services..."
-$CLOUD_WORKFLOW_COMMAND = "gcloud compute scp --recurse ${REMOTE_PROJECT_PATH}/storage/processed/* ${REMOTE_USER}@${CLOUD_VM_NAME}:${REMOTE_PROJECT_PATH}/storage/processed/ --zone=${ZONE}; cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build flower-recognizer dataset-matcher"
-gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$CLOUD_WORKFLOW_COMMAND
+$CLOUD_WORKFLOW_COMMAND = "gcloud compute scp --recurse ${REMOTE_PROJECT_PATH}/storage/processed/* ${REMOTE_USER}@${CLOUD_VM_NAME}:${REMOTE_PROJECT_PATH}/storage/processed/ --zone=${ZONE} -- $SSH_ARGS; cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build flower-recognizer dataset-matcher"
+gcloud compute ssh "${REMOTE_USER}@${EDGE_VM_NAME}" --zone=$ZONE --command=$CLOUD_WORKFLOW_COMMAND -- $SSH_ARGS
 
 Write-Host "--- Workflow Complete ---"
