@@ -17,9 +17,12 @@ $GIT_COMMAND = "rm -rf $REMOTE_PROJECT_PATH; git clone $GitRepoUrl $REMOTE_PROJE
 gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command=$GIT_COMMAND
 gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command=$GIT_COMMAND
 
-# Corrected, more robust file upload
+# **RELIABLE UPLOAD METHOD:**
+# First, copy the video to the VM's home directory.
 gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:/home/Gabriele/" --zone=$ZONE
-gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command="mv /home/Gabriele/$VIDEO_FILENAME ${REMOTE_PROJECT_PATH}/storage/input/"
+# Second, use an SSH command to move the file into the correct sub-folder.
+gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command="mv /home/Gab Gabriele/$VIDEO_FILENAME ${REMOTE_PROJECT_PATH}/storage/input/"
+
 gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command="echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt"
 
 # --- 2. Run Video Processor ---
