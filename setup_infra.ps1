@@ -5,13 +5,15 @@ $REMOTE_USER = "Gabriele"
 
 Write-Host "--- Starting One-Time Infrastructure Setup ---"
 
-# 1. Create Firewall Rule and VMs
-Write-Host "[1/3] Creating firewall rule and VMs..."
+# 1. Clean Up and Create Resources
+Write-Host "[1/3] Cleaning up old resources and creating new VMs..."
+gcloud compute instances delete edge-instance cloud-instance --zone=$ZONE --quiet
+gcloud compute firewall-rules delete allow-ssh-iap --quiet
 gcloud compute firewall-rules create allow-ssh-iap --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0
 gcloud compute instances create edge-instance --zone=$ZONE --machine-type="e2-small" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES
 gcloud compute instances create cloud-instance --zone=$ZONE --machine-type="e2-medium" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
 
-# 2. Perform Manual SSH Handshake (User Action Required)
+# 2. Manual SSH Handshake (User Action Required)
 Write-Host "`n--- ACTION REQUIRED ---"
 Write-Host "The script will now pause. Please run the following two commands in a NEW terminal:"
 Write-Host "1. gcloud compute ssh ${REMOTE_USER}@edge-instance --zone=${ZONE}"
