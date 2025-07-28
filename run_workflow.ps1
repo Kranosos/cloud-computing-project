@@ -1,3 +1,4 @@
+# File: run_workflow.ps1 (Definitive Final Version)
 param (
     [string]$VideoPath,
     [string]$Effect,
@@ -12,14 +13,14 @@ Write-Host "--- Starting Application Workflow ---"
 
 # --- 1. Clean Up and Deploy Code ---
 Write-Host "[1/4] Cleaning, deploying code, and creating directories..."
-# This command uses 'sudo' to fix permission errors during cleanup, then clones, pulls LFS files, and creates all necessary sub-folders.
+# This command now uses 'sudo' to fix permission errors during cleanup, then clones and creates all necessary sub-folders.
 $DEPLOY_COMMAND = "sudo rm -rf $REMOTE_PROJECT_PATH; git clone $GitRepoUrl $REMOTE_PROJECT_PATH && cd $REMOTE_PROJECT_PATH && git lfs pull && mkdir -p storage/input storage/processed storage/results"
 gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command=$DEPLOY_COMMAND
 gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command=$DEPLOY_COMMAND
 
 # --- 2. Upload Inputs ---
 Write-Host "[2/4] Uploading video and effect files..."
-# This is a robust two-step upload: copy to home directory, then move to the correct sub-folder.
+# Using a more reliable two-step upload process
 gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:~/" --zone=$ZONE
 gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command="mv ~/$VIDEO_FILENAME ${REMOTE_PROJECT_PATH}/storage/input/"
 gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command="echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt"
@@ -29,7 +30,7 @@ Write-Host "[3/4] Running video processor on Edge VM..."
 $EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker-compose up --build video-processor"
 gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command=$EDGE_DOCKER_COMMAND
 
-# --- 4. Transfer Keyframes and Run Final Services Sequentially ---
+# --- 4. Transfer Keyframes and Run Final Services ---
 Write-Host "[4/4] Transferring keyframes and running final services..."
 # 4a: Fix permissions on the keyframes created by Docker.
 $CHOWN_COMMAND = "sudo chown -R ${REMOTE_USER}:${REMOTE_USER} ${REMOTE_PROJECT_PATH}/storage/processed"
