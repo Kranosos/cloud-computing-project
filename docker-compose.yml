@@ -13,8 +13,6 @@ services:
     environment:
       - OUTPUT_DIR=/app/storage/results
     volumes:
-      # Using the full, absolute path to the model in users's home directory
-      - /home/Gabriele/flower_classifier_model.h5:/app/flower_classifier_model.h5:ro
       - ./storage/processed:/app/storage/processed:ro
       - ./storage/results:/app/storage/results
 
