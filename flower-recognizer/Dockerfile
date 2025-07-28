@@ -9,6 +9,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY recognize_flower.py .
+COPY flower_classes.json .
 
 CMD ["python", "recognize_flower.py", "/app/storage/processed"]
