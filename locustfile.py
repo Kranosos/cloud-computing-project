@@ -17,7 +17,7 @@ class WorkflowUser(User):
         git_repo_url = "https://github.com/Kranosos/cloud-computing-project.git"
 
         command = [
-            "pwsh", # Use 'powershell' on Windows if pwsh isn't found
+            "powershell", # Use 'powershell' on Windows if pwsh isn't found
             "./run_workflow.ps1",
             "-VideoPath", video_path,
             "-Effect", effect,
@@ -28,7 +28,7 @@ class WorkflowUser(User):
         try:
             # Execute the PowerShell script as a subprocess
             # In locustfile.py
-            process = subprocess.run(command, capture_output=True, text=True, check=True, shell=True)
+            process = subprocess.run(command, capture_output=True, encoding='utf-8', errors='replace', check=True, shell=True)
             total_time = int((time.time() - start_time) * 1000)
             # Mark the request as successful in Locust
             self.environment.events.request.fire(
@@ -39,7 +39,12 @@ class WorkflowUser(User):
             )
         except subprocess.CalledProcessError as e:
             total_time = int((time.time() - start_time) * 1000)
-            # Mark the request as a failure in Locust
+
+            print("=== WORKFLOW ERROR ===")
+            print("Return code:", e.returncode)
+            print("STDOUT:", e.stdout)
+            print("STDERR:", e.stderr)
+
             self.environment.events.request.fire(
                 request_type="workflow",
                 name="full_workflow",

@@ -1,0 +1,53 @@
+Folder PATH listing
+Volume serial number is 8299-89F0
+G:.
+|   .gitattributes
+|   .gitignore
+|   docker-compose.yml
+|   environment.yml
+|   Flower finder.pdf
+|   install_docker.sh
+|   locustfile.py
+|   README.txt
+|   requirements.txt
+|   run_workflow.ps1
+|   setup_infra.ps1
+|   sunflower.mp4
+|   training_model.py
+|   
++---dataset-matcher
+|       analyze_dataset.py
+|       database.py
+|       Dockerfile
+|       pfaf_plants_merged.csv
+|       requirements.txt
+|       
++---flower-recognizer
+|       Dockerfile
+|       flower_classes.json
+|       flower_classifier_model.h5
+|       recognize_flower.py
+|       requirements.txt
+|       
++---key_frame_output_folder
+|       keyframe_0000.jpg
+|       keyframe_0001.jpg
+|       keyframe_0002.jpg
+|       keyframe_0003.jpg
+|       keyframe_0004.jpg
+|       keyframe_0005.jpg
+|       keyframe_0006.jpg
+|       keyframe_0007.jpg
+|       keyframe_0008.jpg
+|       
++---storage
+|   \---results
+|           desired_effect.txt
+|           recognized_flowers.json
+|           
+\---video-processor
+        Dockerfile
+        README.md
+        requirements.txt
+        Video_Processing.py
+        
