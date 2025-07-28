@@ -35,7 +35,7 @@ Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "echo '$Effect' | te
 
 # --- Step 2: Run Video Processor ---
 Write-Host "[2/4] Processing video on Edge VM..."
-$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up video-processor"
+$EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH};  docker compose up video-processor"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $EDGE_DOCKER_COMMAND
 
 # --- Step 3: Transfer Keyframes & Run Final Services ---
@@ -43,12 +43,12 @@ Write-Host "[3/4] Recognizing flowers and matching dataset on Cloud VM..."
 $SCP_COMMAND = "gcloud compute scp --recurse ${REMOTE_PROJECT_PATH}/storage/processed ${REMOTE_USER}@cloud-instance:${REMOTE_PROJECT_PATH}/storage/ --zone=$ZONE"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $SCP_COMMAND
 # Run both services sequentially to get the final result
-$CLOUD_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up flower-recognizer && sudo docker compose up dataset-matcher"
+$CLOUD_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH};  docker compose up flower-recognizer &&  docker compose up dataset-matcher"
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $CLOUD_DOCKER_COMMAND
 
 # --- Step 4: Display the Final Result ---
 Write-Host "`n--- Final Result ---"
-$LOGS_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose logs --no-log-prefix --tail='20' dataset-matcher"
+$LOGS_COMMAND = "cd ${REMOTE_PROJECT_PATH};  docker compose logs --no-log-prefix --tail='20' dataset-matcher"
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $LOGS_COMMAND
 Write-Host "--------------------"
 Write-Host "--- Workflow Complete ---"
