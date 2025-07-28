@@ -1,4 +1,3 @@
-# File: run_workflow.ps1 (Corrected)
 param (
     [string]$VideoPath,
     [string]$Effect,
@@ -7,7 +6,6 @@ param (
 $ZONE = "europe-west1-b"
 $REMOTE_USER = "Gabriele"
 $REMOTE_PROJECT_PATH = "/home/Gabriele/cloud-computing-project"
-$VIDEO_FILENAME = (Get-Item $VideoPath).Name
 
 function Invoke-GcloudSshCommand {
     param (
@@ -22,44 +20,40 @@ function Invoke-GcloudSshCommand {
     }
 }
 
-Write-Host "--- Starting Application Workflow ---"
+Write-Host "--- Starting DIAGNOSTIC Workflow ---"
 
-# --- 1. Clean Up and Deploy Code ---
-Write-Host "[1/5] Cleaning up old project files and results..."
+# --- Steps 1, 2, 3: Cleanup, Deploy, Upload (These are working correctly) ---
+Write-Host "[1/5] Cleaning up..."
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command "sudo rm -rf $REMOTE_PROJECT_PATH"
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "sudo rm -rf $REMOTE_PROJECT_PATH"
 
-Write-Host "[2/5] Deploying code (without LFS model)..."
+Write-Host "[2/5] Deploying code..."
 $DEPLOY_COMMAND = "GIT_LFS_SKIP_SMUDGE=1 git clone $GitRepoUrl $REMOTE_PROJECT_PATH && cd $REMOTE_PROJECT_PATH && mkdir -p storage/input storage/processed storage/results"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $DEPLOY_COMMAND
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $DEPLOY_COMMAND
 
-# --- 2. Upload Inputs ---
 Write-Host "[3/5] Uploading video and effect files..."
 gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:${REMOTE_PROJECT_PATH}/storage/input/" --zone=$ZONE
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to upload video file. Halting script."
-    exit 1
-}
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt"
 
-# --- 3. Run Video Processor ---
+# --- Step 4: Run Video Processor (Working correctly) ---
 Write-Host "[4/5] Running video processor on Edge VM..."
 $EDGE_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build video-processor"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $EDGE_DOCKER_COMMAND
 
-# --- 4. Transfer Keyframes and Run Final Services ---
-Write-Host "[5/5] Transferring keyframes and running final services..."
+# --- Step 5: Transfer and run final services ONE BY ONE ---
+Write-Host "[5/5] Transferring keyframes..."
 $SCP_COMMAND = "gcloud compute scp --recurse ${REMOTE_PROJECT_PATH}/storage/processed ${REMOTE_USER}@cloud-instance:${REMOTE_PROJECT_PATH}/storage/ --zone=$ZONE"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $SCP_COMMAND
 
-$CLOUD_DOCKER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build -d flower-recognizer dataset-matcher"
-Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $CLOUD_DOCKER_COMMAND
+# --- DIAGNOSTIC STEP A: Run Flower Recognizer and show its logs ---
+Write-Host "`n--- Running Flower Recognizer (Foreground) ---"
+$RECOGNIZER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build flower-recognizer"
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $RECOGNIZER_COMMAND
 
-# --- 5. Display the Final Result ---
-Write-Host "`n--- Fetching Final Result ---"
-Start-Sleep -Seconds 10
-$LOGS_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose logs dataset-matcher"
-Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $LOGS_COMMAND
+# --- DIAGNOSTIC STEP B: Run Dataset Matcher and show its logs ---
+Write-Host "`n--- Running Dataset Matcher (Foreground) ---"
+$MATCHER_COMMAND = "cd ${REMOTE_PROJECT_PATH}; sudo docker compose up --build dataset-matcher"
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $MATCHER_COMMAND
 
-Write-Host "--- Workflow Complete ---"
+Write-Host "--- Diagnostic Workflow Complete ---"

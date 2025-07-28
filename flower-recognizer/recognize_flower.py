@@ -1,43 +1,69 @@
+# File: recognize_flower.py (FINAL - Uses MobileNetV2)
 import os
-import cv2
 import json
 import numpy as np
-from keras.models import load_model
 import sys
+import cv2
+
+# Import the necessary components from TensorFlow/Keras
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
+from tensorflow.keras.preprocessing import image as keras_image
 
 # --- Configuration ---
-MODEL_PATH = "flower_classifier_model.h5"
-CLASSES_PATH = "flower_classes.json"
-IMAGE_SIZE = 128
+# MobileNetV2 was trained on images of size 224x224
+IMAGE_SIZE = 224
 
-# --- Load Model and Classes ---
+# --- Load Model ---
+# This line downloads the MobileNetV2 model pre-trained on ImageNet.
+# It only happens once and is cached inside the container for future runs.
 try:
-    model = load_model(MODEL_PATH)
-    with open(CLASSES_PATH, 'r') as f:
-        class_names = json.load(f)
-    print("Model and class labels loaded successfully.")
+    print("Loading MobileNetV2 model...")
+    model = MobileNetV2(weights='imagenet')
+    print("MobileNetV2 model loaded successfully.")
 except Exception as e:
-    print(f"Error loading model or class labels: {e}")
+    print(f"FATAL: Error loading model: {e}")
     sys.exit(1)
 
+
 def predict_flower(image_path):
-    """Predicts the flower name from a single image path."""
+    """Predicts the object in an image and returns the name if it's a known flower."""
     try:
-        img = cv2.imread(image_path)
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        im = cv2.resize(img_rgb, (IMAGE_SIZE, IMAGE_SIZE))
-        im = np.expand_dims(im, axis=0) / 255.0
-        prediction = model.predict(im, verbose=0)
-        predicted_class_index = np.argmax(prediction)
-        return class_names[predicted_class_index]
+        # Load and prepare the image for the model
+        img = keras_image.load_img(image_path, target_size=(IMAGE_SIZE, IMAGE_SIZE))
+        img_array = keras_image.img_to_array(img)
+        img_array_expanded = np.expand_dims(img_array, axis=0)
+        
+        # This is the special preprocessing function required for MobileNetV2
+        processed_img = preprocess_input(img_array_expanded)
+
+        # Get the model's prediction
+        prediction = model.predict(processed_img, verbose=0)
+        
+        # Decode the prediction into human-readable labels from ImageNet
+        decoded = decode_predictions(prediction, top=3)[0]
+
+        # This list can be expanded with other flower types found in ImageNet
+        known_flower_types = ['daisy', 'sunflower', 'poppy', 'rose', 'iris', 'tulip', 'water_lily', 'carnation', 'magnolia', 'bellflower', 'dandelion']
+        
+        for imagenet_id, name, score in decoded:
+            if score > 0.1: # Only consider predictions with some confidence
+                for flower in known_flower_types:
+                    if flower in name:
+                        return flower # Return the simple name of the flower
+        return None # No known flower was found
+        
     except Exception as e:
-        print(f"Could not process image {image_path}. Error: {e}")
+        print(f"Warning: Could not process image {image_path}. Error: {e}")
         return None
 
 def recognize_flowers_in_directory(directory_path):
     """Processes all images in a directory and its subdirectories."""
     recognized_flowers = set()
-    print(f"\nScanning images in directory: {directory_path}")
+    print(f"\nScanning for flowers in directory: {directory_path}")
+    if not os.path.exists(directory_path):
+        print(f"Error: Input directory '{directory_path}' does not exist.")
+        return []
+
     for root, dirs, files in os.walk(directory_path):
         for filename in files:
             if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -47,6 +73,7 @@ def recognize_flowers_in_directory(directory_path):
                     print(f"-> Found '{flower_name}' in {filename}")
                     recognized_flowers.add(flower_name)
     return list(recognized_flowers)
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -61,13 +88,16 @@ if __name__ == '__main__':
 
     final_flower_list = recognize_flowers_in_directory(input_directory)
     
+    # Ensure the list is not empty before writing
+    if not final_flower_list:
+        print("\nNo flowers were recognized in any of the images.")
+        # Write an empty list to the JSON file to signal no flowers were found
+        final_flower_list = []
+    else:
+        print("\n--- Recognition Complete ---")
+        print("Unique flowers found:", final_flower_list)
+
     output_filepath = os.path.join(output_dir, 'recognized_flowers.json')
     with open(output_filepath, 'w') as f:
         json.dump(final_flower_list, f, indent=2)
-
-    if final_flower_list:
-        print("\n--- Recognition Complete ---")
-        print("Unique flowers found:", final_flower_list)
-        print(f"Results saved to: {output_filepath}")
-    else:
-        print("\nNo flowers were recognized.")
+    print(f"Results saved to: {output_filepath}")
