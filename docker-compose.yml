@@ -14,6 +14,7 @@ services:
     environment:
       - OUTPUT_DIR=/app/storage/results
     volumes:
+      - ~/flower_classifier_model.h5:/app/flower_classifier_model.h5:ro
       - ./storage/processed:/app/storage/processed:ro
       - ./storage/results:/app/storage/results
 

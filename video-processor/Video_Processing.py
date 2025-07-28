@@ -8,6 +8,8 @@ INPUT_DIR = os.getenv('INPUT_DIR', 'storage/input')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'storage/processed')
 
 def extract_keyframes(video_path, output_folder, threshold=25, max_time_interval=5.0):
+    # At the start of extract_keyframes
+    print(f"[METRIC] START video_processing for {video_path}")
     """Extracts keyframes from a single video file."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -53,6 +55,8 @@ def extract_keyframes(video_path, output_folder, threshold=25, max_time_interval
         
     cap.release()
     print(f"Extracted {count} keyframes from {os.path.basename(video_path)}")
+    # At the end of extract_keyframes
+    print(f"[METRIC] END video_processing for {video_path}")
 
 if __name__ == "__main__":
     print(f"--- Video Processor Service ---")
@@ -70,4 +74,7 @@ if __name__ == "__main__":
                 print(f"Processing {filename}...")
                 extract_keyframes(video_path, output_subdir)
                 
+
+
+
     print("--- Video processing complete. ---")
