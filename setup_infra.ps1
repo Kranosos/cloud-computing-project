@@ -3,10 +3,23 @@ $ZONE = "europe-west1-b"
 $SCOPES = "https://www.googleapis.com/auth/cloud-platform"
 $REMOTE_USER = "Gabriele"
 
+# Helper function for running commands on the VMs
+function Invoke-GcloudSshCommand {
+    param (
+        [string]$Instance,
+        [string]$Command
+    )
+    gcloud compute ssh "${REMOTE_USER}@${Instance}" --zone=$ZONE --command=$Command
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Command failed on ${Instance}. Halting script."
+        exit 1
+    }
+}
+
 Write-Host "--- Starting One-Time Infrastructure Setup ---"
 
 # --- 1. Clean Up and Create Resources ---
-Write-Host "[1/3] Cleaning up old resources and creating new VMs..."
+Write-Host "[1/4] Cleaning up old resources and creating new VMs..."
 gcloud compute instances delete edge-instance cloud-instance --zone=$ZONE --quiet
 gcloud compute firewall-rules delete allow-ssh-iap --quiet
 gcloud compute firewall-rules create allow-ssh-iap --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0
@@ -22,15 +35,21 @@ Write-Host "Answer 'y' to any prompts, then close the new windows and return her
 Read-Host -Prompt "Press Enter to continue AFTER you have completed the SSH steps..."
 
 # --- 3. Install Dependencies and Set Permissions ---
-Write-Host "[3/3] Installing dependencies and setting permissions on VMs..."
+Write-Host "[3/4] Installing dependencies and setting permissions on VMs..."
 $INSTALL_COMMAND = "sudo apt-get update -y && sudo apt-get install -y git git-lfs && curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh"
-gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command=$INSTALL_COMMAND
-gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command=$INSTALL_COMMAND
-
-# **THIS IS THE CRITICAL NEW COMMAND**
+Invoke-GcloudSshCommand -Instance "edge-instance" -Command $INSTALL_COMMAND
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $INSTALL_COMMAND
 $PERMISSION_COMMAND = "sudo usermod -aG docker ${REMOTE_USER}"
-gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command=$PERMISSION_COMMAND
-gcloud compute ssh "${REMOTE_USER}@cloud-instance" --zone=$ZONE --command=$PERMISSION_COMMAND
+Invoke-GcloudSshCommand -Instance "edge-instance" -Command $PERMISSION_COMMAND
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $PERMISSION_COMMAND
+
+# --- 4. NEW: Pre-authorize SSH connection from Edge to Cloud ---
+Write-Host "[4/4] Pre-authorizing SSH from Edge to Cloud..."
+# Generate a new, passwordless SSH key on the edge-instance
+Invoke-GcloudSshCommand -Instance "edge-instance" -Command "ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -N ''"
+# Get the public key content from the edge-instance
+$EdgePubKey = (gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command="cat ~/.ssh/id_rsa.pub")
+# Append the edge-instance's public key to the cloud-instance's authorized keys file
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "echo '${EdgePubKey}' >> ~/.ssh/authorized_keys"
 
 Write-Host "--- Infrastructure Setup Complete ---"
-Write-Host "NOTE: You may need to log out and log back in for docker group changes to apply if you SSH manually."
