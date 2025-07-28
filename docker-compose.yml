@@ -1,7 +1,6 @@
 services:
   video-processor:
     build: ./video-processor
-    # This section tells the Python script which folders to use
     environment:
       - INPUT_DIR=/app/storage/input
       - OUTPUT_DIR=/app/storage/processed
@@ -14,7 +13,8 @@ services:
     environment:
       - OUTPUT_DIR=/app/storage/results
     volumes:
-      - ~/flower_classifier_model.h5:/app/flower_classifier_model.h5:ro
+      # Using the full, absolute path to the model in users's home directory
+      - /home/Gabriele/flower_classifier_model.h5:/app/flower_classifier_model.h5:ro
       - ./storage/processed:/app/storage/processed:ro
       - ./storage/results:/app/storage/results
 
