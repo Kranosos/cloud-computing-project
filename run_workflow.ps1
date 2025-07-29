@@ -1,14 +1,12 @@
-# File: run_workflow.ps1 (FINAL - With User ID)
 param (
     [string]$VideoPath,
     [string]$Effect,
     [string]$GitRepoUrl,
-    # Accept the UserID as a parameter
     [string]$UserID 
 )
 $ZONE = "europe-west1-b"
 $REMOTE_USER = "Gabriele"
-# Create a unique project path for each user
+$PROJECT_ID = "iot-cloud-computing-project"
 $REMOTE_PROJECT_PATH = "/home/Gabriele/cloud-computing-project_${UserID}"
 
 function Invoke-GcloudSshCommand {
