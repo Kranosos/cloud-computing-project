@@ -24,7 +24,7 @@ gcloud compute instances delete edge-instance cloud-instance --zone=$ZONE --quie
 gcloud compute firewall-rules delete allow-ssh-iap --quiet
 gcloud compute firewall-rules create allow-ssh-iap --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0
 gcloud compute instances create edge-instance --zone=$ZONE --machine-type="e2-small" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES
-gcloud compute instances create cloud-instance --zone=$ZONE --machine-type="e2-medium" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
+gcloud compute instances create cloud-instance --zone=$ZONE --machine-type="n2-standard-4" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
 
 # --- 2. Manual SSH Handshake (User Action Required) ---
 Write-Host "`n--- ACTION REQUIRED ---"
