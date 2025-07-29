@@ -1,10 +1,15 @@
-# File: locustfile.py (FINAL VERSION)
+# File: locustfile.py (FINAL - With User ID)
 import subprocess
 import time
+import uuid
 from locust import User, task, between
 
 class WorkflowUser(User):
     wait_time = between(10, 20)
+
+    def on_start(self):
+        # Give each simulated user a unique ID
+        self.user_id = str(uuid.uuid4())
 
     @task
     def run_full_workflow(self):
@@ -12,10 +17,11 @@ class WorkflowUser(User):
         effect = "Diuretic"
         git_repo_url = "https://github.com/Kranosos/cloud-computing-project.git"
 
-        # Use 'powershell' instead of 'pwsh' for maximum compatibility on Windows
         command_string = (
             f'powershell ./run_workflow.ps1 -VideoPath "{video_path}" '
-            f'-Effect "{effect}" -GitRepoUrl "{git_repo_url}"'
+            f'-Effect "{effect}" -GitRepoUrl "{git_repo_url}" '
+            # Pass the unique user ID to the script
+            f'-UserID "{self.user_id}"'
         )
 
         start_time = time.time()
