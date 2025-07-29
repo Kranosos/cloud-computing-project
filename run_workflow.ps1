@@ -36,7 +36,7 @@ $DEPLOY_COMMAND = "GIT_LFS_SKIP_SMUDGE=1 git clone $GitRepoUrl $REMOTE_PROJECT_P
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $DEPLOY_COMMAND -Checkpoint "1C"
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $DEPLOY_COMMAND -Checkpoint "1D"
 Write-Host "--- CHECKPOINT 1E: About to SCP video..."
-gcloud compute scp $VideoPath "${REMOTE_PROJECT_PATH}/storage/input" --zone=$ZONE --project=$PROJECT_ID --ssh-key-file="C:\Users\Asus\.ssh\google_compute_engine"
+gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:${REMOTE_PROJECT_PATH}/storage/input" --zone=$ZONE --project=$PROJECT_ID
 if ($LASTEXITCODE -ne 0) { Write-Error "--- FAILED AT CHECKPOINT 1E ---"; exit 1 }
 Write-Host "--- CHECKPOINT 1E: Success ---"
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "echo '$Effect' | tee ${REMOTE_PROJECT_PATH}/storage/results/desired_effect.txt" -Checkpoint "1F"
