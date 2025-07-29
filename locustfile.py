@@ -1,54 +1,51 @@
-# File: locustfile.py
+# File: locustfile.py (FINAL DIAGNOSTIC VERSION)
 import subprocess
 import time
 from locust import User, task, between
 
 class WorkflowUser(User):
-    # Each simulated user will wait 5 to 15 seconds between runs
-    wait_time = between(5, 15)
+    wait_time = between(10, 20)
 
     @task
     def run_full_workflow(self):
-        # --- Parameters for your script ---
-        # Ensure the video path is correct on your local machine
         video_path = "./sunflower.mp4"
-        # The effect can be changed to test different scenarios
         effect = "Diuretic"
         git_repo_url = "https://github.com/Kranosos/cloud-computing-project.git"
 
-        command = [
-            "powershell", # Use 'powershell' on Windows if pwsh isn't found
-            "./run_workflow.ps1",
-            "-VideoPath", video_path,
-            "-Effect", effect,
-            "-GitRepoUrl", git_repo_url
-        ]
+        # Create a single command string for reliability with shell=True
+        command_string = (
+            f'pwsh ./run_workflow.ps1 -VideoPath "{video_path}" '
+            f'-Effect "{effect}" -GitRepoUrl "{git_repo_url}"'
+        )
 
         start_time = time.time()
         try:
-            # Execute the PowerShell script as a subprocess
-            # In locustfile.py
-            process = subprocess.run(command, capture_output=True, encoding='utf-8', errors='replace', check=True, shell=True)
+            process = subprocess.run(
+                command_string, 
+                capture_output=True, 
+                text=True, 
+                check=True, 
+                shell=True,
+                encoding='utf-8' # Ensure proper text encoding
+            )
             total_time = int((time.time() - start_time) * 1000)
-            # Mark the request as successful in Locust
             self.environment.events.request.fire(
-                request_type="workflow",
-                name="full_workflow",
-                response_time=total_time,
-                response_length=len(process.stdout)
+                request_type="workflow", name="full_workflow",
+                response_time=total_time, response_length=len(process.stdout)
             )
         except subprocess.CalledProcessError as e:
             total_time = int((time.time() - start_time) * 1000)
 
-            print("=== WORKFLOW ERROR ===")
-            print("Return code:", e.returncode)
-            print("STDOUT:", e.stdout)
-            print("STDERR:", e.stderr)
-
+            # THIS BLOCK WILL PRINT THE HIDDEN ERROR MESSAGE
+            print("--- SCRIPT FAILED ---")
+            print(f"RETURN CODE: {e.returncode}")
+            print("\n--- STANDARD OUTPUT FROM SCRIPT ---")
+            print(e.stdout)
+            print("\n--- STANDARD ERROR FROM SCRIPT ---")
+            print(e.stderr)
+            print("-----------------------")
+            
             self.environment.events.request.fire(
-                request_type="workflow",
-                name="full_workflow",
-                response_time=total_time,
-                response_length=0,
-                exception=e
+                request_type="workflow", name="full_workflow",
+                response_time=total_time, response_length=0, exception=e
             )
