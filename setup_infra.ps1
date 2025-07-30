@@ -1,4 +1,4 @@
-# File: setup_infra.ps1 (Corrected FINAL VERSION)
+# File: setup_infra.ps1 (FINAL and COMPLETE VERSION)
 $ZONE = "europe-west1-b"
 $SCOPES = "https://www.googleapis.com/auth/cloud-platform"
 $REMOTE_USER = "Gabriele"
@@ -23,8 +23,10 @@ Write-Host "[1/4] Cleaning up old resources and creating new VMs..."
 gcloud compute instances delete edge-instance cloud-instance --zone=$ZONE --quiet
 gcloud compute firewall-rules delete allow-ssh-iap --quiet
 gcloud compute firewall-rules create allow-ssh-iap --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=0.0.0.0/0
-gcloud compute instances create edge-instance --zone=$ZONE --machine-type="e2-small" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES
-gcloud compute instances create cloud-instance --zone=$ZONE --machine-type="e2-medium" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
+# ** Increased boot disk size for edge-instance **
+gcloud compute instances create edge-instance --zone=$ZONE --machine-type="e2-small" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
+# ** Upgraded machine type and increased boot disk size for cloud-instance **
+gcloud compute instances create cloud-instance --zone=$ZONE --machine-type="n2-standard-4" --image-family="ubuntu-2204-lts" --image-project="ubuntu-os-cloud" --scopes=$SCOPES --boot-disk-size=30GB
 
 # --- 2. Manual SSH Handshake (User Action Required) ---
 Write-Host "`n--- ACTION REQUIRED ---"
@@ -43,13 +45,10 @@ $PERMISSION_COMMAND = "sudo usermod -aG docker ${REMOTE_USER}"
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command $PERMISSION_COMMAND
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $PERMISSION_COMMAND
 
-# --- 4. NEW: Pre-authorize SSH connection from Edge to Cloud ---
+# --- 4. Pre-authorize SSH connection from Edge to Cloud ---
 Write-Host "[4/4] Pre-authorizing SSH from Edge to Cloud..."
-# Generate a new, passwordless SSH key on the edge-instance
 Invoke-GcloudSshCommand -Instance "edge-instance" -Command "ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -N ''"
-# Get the public key content from the edge-instance
 $EdgePubKey = (gcloud compute ssh "${REMOTE_USER}@edge-instance" --zone=$ZONE --command="cat ~/.ssh/id_rsa.pub")
-# Append the edge-instance's public key to the cloud-instance's authorized keys file
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "echo '${EdgePubKey}' >> ~/.ssh/authorized_keys"
 
 Write-Host "--- Infrastructure Setup Complete ---"
