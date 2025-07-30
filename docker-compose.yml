@@ -5,19 +5,20 @@ services:
       - INPUT_DIR=/app/storage/input
       - OUTPUT_DIR=/app/storage/processed
     volumes:
-      - ./storage:/app/storage
+      - ./storage/input:/app/storage/input
+      - ./storage/processed:/app/storage/processed
 
   flower-recognizer:
     build: ./flower-recognizer
     environment:
       - OUTPUT_DIR=/app/storage/results
     volumes:
-    volumes:
-      - ./storage:/app/storage:ro
+      - ./storage/processed:/app/storage/processed:ro
+      - ./storage/results:/app/storage/results
 
   dataset-matcher:
     build: ./dataset-matcher
     environment:
       - INPUT_DIR=/app/storage/results
     volumes:
-      - ./storage:/app/storage:ro
+      - ./storage/results:/app/storage/results:ro
