@@ -1,4 +1,4 @@
-# File: locustfile.py (DIAGNOSTIC VERSION)
+# File: locustfile.py (FINAL - With User ID)
 import subprocess
 import time
 import uuid
@@ -17,20 +17,20 @@ class WorkflowUser(User):
         effect = "Diuretic"
         git_repo_url = "https://github.com/Kranosos/cloud-computing-project.git"
 
-        # Create a single command string for reliability with shell=True
         command_string = (
             f'powershell ./run_workflow.ps1 -VideoPath "{video_path}" '
             f'-Effect "{effect}" -GitRepoUrl "{git_repo_url}" '
+            # Pass the unique user ID to the script
             f'-UserID "{self.user_id}"'
         )
 
         start_time = time.time()
         try:
             process = subprocess.run(
-                command_string, 
-                capture_output=True, 
-                text=True, 
-                check=True, 
+                command_string,
+                capture_output=True,
+                text=True,
+                check=True,
                 shell=True,
                 encoding='cp850'
             )
@@ -41,16 +41,8 @@ class WorkflowUser(User):
             )
         except subprocess.CalledProcessError as e:
             total_time = int((time.time() - start_time) * 1000)
-
-            # THIS BLOCK WILL PRINT THE HIDDEN ERROR MESSAGE
-            print("--- SCRIPT FAILED ---")
-            print(f"RETURN CODE: {e.returncode}")
-            print("\n--- STANDARD OUTPUT FROM SCRIPT ---")
-            print(e.stdout)
-            print("\n--- STANDARD ERROR FROM SCRIPT ---")
-            print(e.stderr)
-            print("-----------------------")
-            
+            # Log the full error to the Locust terminal if it fails
+            error_details = f"STDOUT: {e.stdout} \nSTDERR: {e.stderr}"
             self.environment.events.request.fire(
                 request_type="workflow", name="full_workflow",
                 response_time=total_time, response_length=0, exception=e
