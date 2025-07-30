@@ -58,3 +58,5 @@ $LOGS_COMMAND = "cd ${REMOTE_PROJECT_PATH}; docker compose logs --no-log-prefix 
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command $LOGS_COMMAND
 Write-Host "--------------------"
 Write-Host "--- Workflow Complete ---"
+Invoke-GcloudSshCommand -Instance "edge-instance" -Command "sudo rm -rf $REMOTE_PROJECT_PATH"
+Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "sudo rm -rf $REMOTE_PROJECT_PATH"
