@@ -40,6 +40,8 @@ Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "cd ${REMOTE_PROJECT
 
 # --- Step 3: Upload Inputs ---
 Write-Host "[3/5] Uploading video and effect files..."
+Start-Sleep -Seconds 5
+Invoke-GcloudSshCommand -Instance "edge-instance" -Command "ls -l ${REMOTE_PROJECT_PATH}/storage/"
 # This scp command now includes the explicit destination filename for robustness
 gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:${REMOTE_PROJECT_PATH}/storage/input/${VIDEO_FILENAME}" --zone=$ZONE --project=$PROJECT_ID
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "cd ${REMOTE_PROJECT_PATH}; mkdir -p storage/results; echo '$Effect' | tee ./storage/results/desired_effect.txt"
