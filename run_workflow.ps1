@@ -8,9 +8,10 @@ param (
 $ZONE = "europe-west1-b"
 $REMOTE_USER = "Gabriele"
 $PROJECT_ID = "iot-cloud-computing-project"
-# Use a unique name for the project path AND the Docker project to prevent collisions
 $PROJECT_NAME = "flower-finder_${UserID}"
 $REMOTE_PROJECT_PATH = "/home/Gabriele/${PROJECT_NAME}"
+# Get the base filename from the VideoPath
+$VIDEO_FILENAME = (Get-Item $VideoPath).Name
 
 # Helper function to execute commands on remote VMs
 function Invoke-GcloudSshCommand {
@@ -39,7 +40,8 @@ Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "cd ${REMOTE_PROJECT
 
 # --- Step 3: Upload Inputs ---
 Write-Host "[3/5] Uploading video and effect files..."
-gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:${REMOTE_PROJECT_PATH}/storage/input/" --zone=$ZONE --project=$PROJECT_ID
+# This scp command now includes the explicit destination filename for robustness
+gcloud compute scp $VideoPath "${REMOTE_USER}@edge-instance:${REMOTE_PROJECT_PATH}/storage/input/${VIDEO_FILENAME}" --zone=$ZONE --project=$PROJECT_ID
 Invoke-GcloudSshCommand -Instance "cloud-instance" -Command "cd ${REMOTE_PROJECT_PATH}; mkdir -p storage/results; echo '$Effect' | tee ./storage/results/desired_effect.txt"
 
 # --- Step 4: Run Workflow ---
