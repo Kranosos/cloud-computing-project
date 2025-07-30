@@ -74,7 +74,4 @@ if __name__ == "__main__":
                 print(f"Processing {filename}...")
                 extract_keyframes(video_path, output_subdir)
                 
-
-
-
     print("--- Video processing complete. ---")
