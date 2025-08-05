@@ -46,12 +46,11 @@ def predict_flower(image_path):
         known_flower_types = ['daisy', 'sunflower', 'poppy', 'rose', 'iris', 'tulip', 'water_lily', 'carnation', 'magnolia', 'bellflower', 'dandelion']
         
         for imagenet_id, name, score in decoded:
-            if score > 0.1:
-                print(f"-> Prediction: {name} ({score:.2f})")
-                return name
-
-        print(f"-> No confident prediction for {os.path.basename(image_path)}")
-        return None
+            if score > 0.1: # Only consider predictions with some confidence
+                for flower in known_flower_types:
+                    if flower in name:
+                        return flower # Return the simple name of the flower
+        return None # No known flower was found
         
     except Exception as e:
         print(f"Warning: Could not process image {image_path}. Error: {e}")
